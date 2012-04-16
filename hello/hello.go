@@ -1,29 +1,49 @@
 package hello
 
 import (
-    "appengine"
-    "appengine/user"
     "fmt"
+    "html/template"
     "net/http"
 )
 
 func init() {
-    http.HandleFunc("/", handler)
+    http.HandleFunc("/", root)
+    http.HandleFunc("/sign", sign)
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-    c := appengine.NewContext(r)
-    u := user.Current(c)
-    if u == nil {
-        url, err := user.LoginURL(c, r.URL.String())
+func root(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprint(w, guestbookForm)
+}
+
+const guestbookForm = `
+<html>
+  <body>
+    <form action="/sign" method="post">
+      <div><textarea name="content" rows="3" cols="60"></textarea></div>
+      <div><input type="submit" value="Sign Guestbook"></div>
+    </form>
+  </body>
+</html>
+`
+
+func sign(w http.ResponseWriter, r *http.Request) {
+    if r.FormValue("content") != ""  {
+        err := signTemplate.Execute(w, r.FormValue("content"))
         if err != nil {
             http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
         }
-        w.Header().Set("Location", url)
-        w.WriteHeader(http.StatusFound)
-        return
+    } else {
+        fmt.Fprint(w, "Error:  Please enter something")
     }
-    fmt.Fprintf(w, "Hello, %v!!!!", u)
 }
 
+var signTemplate = template.Must(template.New("sign").Parse(signTemplateHTML))
+
+const signTemplateHTML = `
+<html>
+  <body>
+    <p>You wrote:</p>
+    <pre>{{.}}</pre>
+  </body>
+</html>
+`
